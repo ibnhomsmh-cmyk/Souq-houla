@@ -1,12 +1,15 @@
-<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سوق الحولة - النسخة الكاملة</title>
+    <title>سوق الحولة - النسخة المتصلة</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
     <style>
         :root {
             --main-color: #27ae60;
@@ -15,9 +18,14 @@
             --text-dark: #2c3e50;
             --whatsapp-color: #25d366;
             --heart-color: #e74c3c;
+            --nav-bg: #ffffff;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
+        body.theme-dark { --main-color: #1a1a2e; --bg-light: #16213e; --text-dark: #e94560; --white: #0f3460; --nav-bg: #1a1a2e; color: #fff; }
+        body.theme-blue { --main-color: #2980b9; --bg-light: #ebf5fb; --text-dark: #154360; --nav-bg: #ffffff; }
+        body.theme-fuchsia { --main-color: #d81b60; --bg-light: #fce4ec; --text-dark: #880e4f; --nav-bg: #ffffff; }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; transition: background 0.3s, color 0.3s; }
         body { background-color: var(--bg-light); color: var(--text-dark); padding-bottom: 90px; }
 
         header {
@@ -26,14 +34,287 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        /* --- تصميم البنر الإعلاني المتحرك --- */
         .promo-slider {
-            width: 100%;
-            height: 160px;
-            overflow: hidden;
-            position: relative;
-            background: #ddd;
-            margin-bottom: 10px;
+            width: 100%; height: 160px; overflow: hidden; position: relative;
+            background: #fff; margin-bottom: 10px;
+        }
+        .slides-container {
+            display: flex; width: 300%; height: 100%;
+            transition: transform 1s ease-in-out; /* حركة انسيابية ناعمة */
+        }
+        .slide {
+            width: 33.333%; height: 100%; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: white;
+            text-align: center; padding: 0; font-weight: bold;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+        }
+        .ad-button {
+            position: absolute; bottom: 10px; left: 10px; background: var(--whatsapp-color);
+            color: white; padding: 6px 12px; border-radius: 20px; text-decoration: none;
+            font-size: 0.75rem; display: flex; align-items: center; gap: 5px; z-index: 10;
+        }
+
+        .page { display: none; padding: 15px; animation: fadeIn 0.3s; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+        .category-card {
+            background: var(--white); padding: 15px 5px; border-radius: 12px;
+            text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
+        }
+        .category-card i { font-size: 1.5rem; color: var(--main-color); margin-bottom: 8px; display: block; }
+        .category-card span { font-size: 0.75rem; font-weight: bold; }
+
+        .ad-item {
+            background: var(--white); border-radius: 15px; padding: 15px; margin-bottom: 15px;
+            position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .ad-price {
+            display: inline-block; background: #e8f5e9; color: var(--main-color);
+            padding: 2px 8px; border-radius: 5px; font-weight: bold; margin-top: 5px;
+        }
+        .fav-icon {
+            position: absolute; top: 15px; left: 15px; font-size: 1.2rem; cursor: pointer; color: #ccc;
+        }
+        .fav-icon.active { color: var(--heart-color); }
+
+        .theme-selector { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .theme-btn { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; }
+
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; background: var(--nav-bg);
+            display: flex; justify-content: space-between; align-items: center;
+            height: 65px; box-shadow: 0 -2px 15px rgba(0,0,0,0.1); z-index: 1000; padding: 0 10px;
+        }
+        .nav-btn { border: none; background: none; color: #7f8c8d; cursor: pointer; font-size: 0.75rem; width: 20%; text-align: center; }
+        .nav-btn.active { color: var(--main-color); }
+        .nav-btn i { font-size: 1.3rem; display: block; margin-bottom: 2px; }
+
+        .center-add-btn {
+            background: var(--main-color); color: white !important;
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; border: 4px solid var(--white);
+            transform: translateY(-20px); cursor: pointer;
+        }
+
+        .modal {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: white; color: #333; margin: 5% auto; padding: 20px;
+            width: 90%; max-width: 500px; border-radius: 20px; max-height: 90vh; overflow-y: auto;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; outline: none;
+        }
+        .submit-btn {
+            background: var(--main-color); color: white; border: none;
+            width: 100%; padding: 14px; border-radius: 10px; font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body id="bodyTag">
+
+<header><h3 id="header-title">سوق الحولة</h3></header>
+
+<div id="adModal" class="modal">
+    <div class="modal-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h4>إضافة إعلان جديد</h4>
+            <i class="fas fa-times" onclick="toggleModal(false)" style="cursor: pointer; color: red;"></i>
+        </div>
+        <div class="form-group">
+            <label>اختر القسم</label>
+            <select id="adCategory">
+                <option>مطاعم</option><option>أثاث</option><option>أدوات كهربائية</option><option>أدوات منزلية</option>
+                <option>سيارات</option><option>موتورات</option><option>هواتف</option>
+                <option>إلكترونيات</option><option>مواد بناء</option><option>أدوات تجميل</option>
+                <option>بيوت للأجار</option><option>بيوت للبيع</option><option>قسم الأطباء</option>
+                <option>قسم الصيدليات</option><option>محلات ومتاجر</option>
+            </select>
+        </div>
+        <div class="form-group"><input type="text" id="adPriceInput" placeholder="السعر (مثال: 100$)"></div>
+        <div class="form-group"><textarea id="adDescription" rows="3" placeholder="وصف السلعة..."></textarea></div>
+        <div class="form-group"><input type="tel" id="adPhone" placeholder="رقم الواتساب (مثال: 905xxxxxxxx)"></div>
+        <button class="submit-btn" onclick="publishToFirebase()">نشر الإعلان</button>
+    </div>
+</div>
+
+<div id="home" class="page active">
+    <div class="promo-slider">
+        <div class="slides-container" id="slidesContainer">
+            <div class="slide" style="background-image: url('https://e.top4top.io/p_3698lth5n0.jpg'); background-color: #fff;"></div>
+            <div class="slide" style="background: linear-gradient(45deg, #1a1a2e, #16213e);">
+                <i class="fas fa-concierge-bell" style="font-size: 2rem; color: #00d2ff;"></i>
+                <h2 style="margin-top:10px;">تطبيق خدمة الحولة</h2>
+                <p style="font-size: 0.9rem;">دليل المهن والخدمات الشامل في منطقتك</p>
+            </div>
+            <div class="slide" style="background: linear-gradient(45deg, #27ae60, #2ecc71);">
+                <h2>سوق الحولة</h2>
+                <p>أعلن عن بضاعتك مجاناً وبكل سهولة</p>
+            </div>
+        </div>
+        <a href="https://wa.me/905384076469" target="_blank" class="ad-button"><i class="fab fa-whatsapp"></i> احجز إعلانك</a>
+    </div>
+
+    <div class="grid-container">
+        <div class="category-card" onclick="openCategory('مطاعم')"><i class="fas fa-utensils"></i><span>مطاعم</span></div>
+        <div class="category-card" onclick="openCategory('أثاث')"><i class="fas fa-couch"></i><span>أثاث</span></div>
+        <div class="category-card" onclick="openCategory('أدوات كهربائية')"><i class="fas fa-plug"></i><span>كهربائيات</span></div>
+        <div class="category-card" onclick="openCategory('أدوات منزلية')"><i class="fas fa-blender"></i><span>منزلية</span></div>
+        <div class="category-card" onclick="openCategory('سيارات')"><i class="fas fa-car"></i><span>سيارات</span></div>
+        <div class="category-card" onclick="openCategory('موتورات')"><i class="fas fa-motorcycle"></i><span>موتورات</span></div>
+        <div class="category-card" onclick="openCategory('هواتف')"><i class="fas fa-mobile-alt"></i><span>هواتف</span></div>
+        <div class="category-card" onclick="openCategory('إلكترونيات')"><i class="fas fa-laptop"></i><span>إلكترونيات</span></div>
+        <div class="category-card" onclick="openCategory('مواد بناء')"><i class="fas fa-trowel-bricks"></i><span>بناء</span></div>
+        <div class="category-card" onclick="openCategory('بيوت للأجار')"><i class="fas fa-key"></i><span>للأجار</span></div>
+        <div class="category-card" onclick="openCategory('بيوت للبيع')"><i class="fas fa-home"></i><span>للبيع</span></div>
+        <div class="category-card" onclick="openCategory('قسم الأطباء')"><i class="fas fa-user-md"></i><span>الأطباء</span></div>
+    </div>
+</div>
+
+<div id="category-detail" class="page">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+        <button onclick="showPage('home','سوق الحولة')" style="border:none; background:none; font-size:1.2rem; color:inherit;"><i class="fas fa-arrow-right"></i></button>
+        <h4 id="category-title"></h4>
+    </div>
+    <div id="ads-container"></div>
+</div>
+
+<div id="favorites" class="page"><h4>المفضلة</h4><div id="fav-container"></div></div>
+
+<div id="profile" class="page">
+    <div style="text-align: center; margin-bottom: 30px;">
+        <i class="fas fa-user-circle" style="font-size: 4rem; color: var(--main-color);"></i>
+        <h4 style="margin-top: 10px;">إعدادات المظهر</h4>
+    </div>
+    <div class="theme-selector">
+        <div class="theme-btn" style="background: #27ae60;" onclick="changeTheme('default')"></div>
+        <div class="theme-btn" style="background: #1a1a2e;" onclick="changeTheme('dark')"></div>
+        <div class="theme-btn" style="background: #2980b9;" onclick="changeTheme('blue')"></div>
+        <div class="theme-btn" style="background: #d81b60;" onclick="changeTheme('fuchsia')"></div>
+    </div>
+    <p style="text-align:center; margin-top:40px; font-size: 0.8rem; opacity: 0.7;">سوق الحولة التجاري - الإصدار 2.0</p>
+</div>
+
+<nav class="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('home', 'سوق الحولة', this)"><i class="fas fa-home"></i>الرئيسية</button>
+    <button class="nav-btn" onclick="window.open('https://wa.me/905384076469')"><i class="fas fa-comments"></i>الدعم</button>
+    <div class="center-add-btn" onclick="toggleModal(true)"><i class="fas fa-plus"></i></div>
+    <button class="nav-btn" onclick="showPage('favorites', 'المفضلة', this)"><i class="fas fa-heart"></i>المفضلة</button>
+    <button class="nav-btn" onclick="showPage('profile', 'حسابي', this)"><i class="fas fa-user"></i>حسابي</button>
+</nav>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyC_yDmo-qYtK8LqwbuVF-v7FQ_JE8VzFKc",
+        authDomain: "souq-houla.firebaseapp.com",
+        databaseURL: "https://souq-houla-default-rtdb.firebaseio.com",
+        projectId: "souq-houla",
+        storageBucket: "souq-houla.firebasestorage.app",
+        messagingSenderId: "948869803475",
+        appId: "1:948869803475:web:333a16d733674c72a4d326"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let favoriteList = JSON.parse(localStorage.getItem('souq_hula_favs')) || [];
+
+    // نظام تحريك البنر المصحح (انتقال لليمين بشكل صحيح)
+    let currS = 0;
+    const totalSlides = 3;
+    function autoSlide() {
+        currS = (currS + 1) % totalSlides;
+        const container = document.getElementById('slidesContainer');
+        if (container) {
+            // التحويل لليمين بنسبة 33.33% لكل شريحة لأن العرض الكلي 300%
+            container.style.transform = `translateX(${currS * 33.333}%)`;
+        }
+    }
+    setInterval(autoSlide, 5000);
+
+    function changeTheme(theme) {
+        const body = document.getElementById('bodyTag');
+        body.className = ''; 
+        if(theme !== 'default') body.classList.add('theme-' + theme);
+        localStorage.setItem('souq_theme', theme);
+    }
+    
+    const savedTheme = localStorage.getItem('souq_theme');
+    if(savedTheme) changeTheme(savedTheme);
+
+    function toggleModal(s) { document.getElementById('adModal').style.display = s ? 'block' : 'none'; }
+
+    function showPage(id, title, btn) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.getElementById('header-title').innerText = title;
+        if(btn) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        if(id === 'favorites') renderFavorites();
+    }
+
+    function openCategory(cat) {
+        showPage('category-detail', cat);
+        document.getElementById('category-title').innerText = "قسم " + cat;
+        fetchAds(cat);
+    }
+
+    function publishToFirebase() {
+        const cat = document.getElementById('adCategory').value;
+        const pr = document.getElementById('adPriceInput').value;
+        const ds = document.getElementById('adDescription').value;
+        const ph = document.getElementById('adPhone').value;
+        if(!ds || !ph) { alert("أكمل البيانات"); return; }
+        const newAd = { id: Date.now(), category: cat, price: pr, desc: ds, phone: ph };
+        db.ref('ads/').push(newAd).then(() => {
+            alert("تم النشر بنجاح!");
+            toggleModal(false);
+            window.open(`https://wa.me/${ph}?text=*إعلان جديد من سوق الحولة*%0A*القسم:* ${cat}%0A*الوصف:* ${ds}`, '_blank');
+        });
+    }
+
+    function fetchAds(cat) {
+        const container = document.getElementById('ads-container');
+        container.innerHTML = "جاري التحميل...";
+        db.ref('ads/').on('value', (snap) => {
+            const data = snap.val();
+            container.innerHTML = "";
+            let found = false;
+            for(let k in data) {
+                const ad = data[k];
+                if(ad.category === cat) {
+                    found = true;
+                    container.innerHTML += `<div class="ad-item"><i class="fas fa-heart fav-icon ${isFav(ad.id) ? 'active' : ''}" onclick="toggleFav(this, '${ad.id}', '${ad.desc.substring(0,15)}')"></i><h5>${ad.category}</h5><p>${ad.desc}</p>${ad.price ? `<div class="ad-price">${ad.price}</div>` : ''}<button class="submit-btn" style="margin-top:10px; padding:8px;" onclick="window.open('https://wa.me/${ad.phone}')">تواصل واتساب</button></div>`;
+                }
+            }
+            if(!found) container.innerHTML = "لا توجد إعلانات حالياً.";
+        });
+    }
+
+    function toggleFav(el, id, title) {
+        el.classList.toggle('active');
+        const idx = favoriteList.findIndex(i => i.id == id);
+        if(idx > -1) favoriteList.splice(idx, 1);
+        else favoriteList.push({id, title});
+        localStorage.setItem('souq_hula_favs', JSON.stringify(favoriteList));
+    }
+    function isFav(id) { return favoriteList.some(i => i.id == id); }
+
+    function renderFavorites() {
+        const container = document.getElementById('fav-container');
+        if(favoriteList.length === 0) { container.innerHTML = "المفضلة فارغة."; return; }
+        container.innerHTML = favoriteList.map(i => `<div class="ad-item"><h5>${i.title}...</h5><p>تم حفظه في مفضلتك</p></div>`).join('');
+    }
+</script>
+</body>
+</html>
         }
         .slides-container {
             display: flex;
