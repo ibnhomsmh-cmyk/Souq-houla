@@ -1,4 +1,4 @@
-            <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -57,8 +57,9 @@
         .modal-content { background: white; margin: 5% auto; padding: 20px; width: 90%; max-width: 500px; border-radius: 20px; color: #333; overflow-y: auto; max-height: 90vh; }
         .input-f { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #ddd; outline: none; }
         .submit-btn { background: var(--main-color); color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .submit-btn:disabled { background: #ccc; }
         
-        #uploadStatus { font-size: 0.8rem; color: var(--main-color); margin-bottom: 10px; display: none; }
+        #uploadStatus { font-size: 0.8rem; color: var(--main-color); margin-bottom: 10px; display: none; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body id="bodyTag">
@@ -102,7 +103,7 @@
     <div style="text-align:center;">
         <i class="fas fa-user-circle" style="font-size: 3rem; color: var(--main-color);"></i>
         <h4 style="margin: 15px 0;">تغيير الثيم</h4>
-        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+        <div style="display: flex; gap: 10px; justify-content: center;">
             <div style="width: 40px; height: 40px; border-radius: 50%; background: #27ae60; cursor: pointer;" onclick="changeTheme('default')"></div>
             <div style="width: 40px; height: 40px; border-radius: 50%; background: #1a1a2e; cursor: pointer;" onclick="changeTheme('dark')"></div>
             <div style="width: 40px; height: 40px; border-radius: 50%; background: #2980b9; cursor: pointer;" onclick="changeTheme('blue')"></div>
@@ -132,9 +133,9 @@
         <textarea id="adDescription" class="input-f" placeholder="وصف السلعة..."></textarea>
         <input type="tel" id="adPhone" class="input-f" placeholder="رقم الواتساب">
         
-        <label style="font-size: 0.8rem; color: #666;">ارفاق صورة الإعلان:</label>
+        <label style="font-size: 0.8rem; color: #666;">ارفاق صورة (اختياري):</label>
         <input type="file" id="adImageInput" class="input-f" accept="image/*">
-        <p id="uploadStatus">جاري ضغط ورفع الصورة... <i class="fas fa-spinner fa-spin"></i></p>
+        <p id="uploadStatus">جاري التجهيز...</p>
         
         <button class="submit-btn" id="publishBtn" onclick="handlePublish()">نشر الإعلان</button>
         <button onclick="toggleModal(false)" style="width:100%; margin-top:10px; background:none; border:none; color:red;">إلغاء</button>
@@ -178,7 +179,7 @@
     function changeTheme(theme) { document.body.className = theme === 'default' ? '' : 'theme-' + theme; localStorage.setItem('souq_theme', theme); }
     if(localStorage.getItem('souq_theme')) changeTheme(localStorage.getItem('souq_theme'));
 
-    // وظيفة ضغط الصورة قبل الرفع
+    // وظيفة ضغط الصورة المحسنة (أسرع)
     async function compressImage(file) {
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -188,10 +189,9 @@
                 img.src = event.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800; // تصغير العرض لـ 800 بكسل كحد أقصى
+                    const MAX_WIDTH = 600; // تصغير أكثر للسرعة
                     let width = img.width;
                     let height = img.height;
-
                     if (width > MAX_WIDTH) {
                         height *= MAX_WIDTH / width;
                         width = MAX_WIDTH;
@@ -200,11 +200,7 @@
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // جودة 0.6 توفر مساحة هائلة مع الحفاظ على وضوح كافٍ للجوال
-                    canvas.toBlob((blob) => {
-                        resolve(blob);
-                    }, 'image/jpeg', 0.6);
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.5); // جودة متوسطة لسرعة الرفع
                 };
             };
         });
@@ -215,64 +211,83 @@
         const publishBtn = document.getElementById('publishBtn');
         const status = document.getElementById('uploadStatus');
         
+        const ds = document.getElementById('adDescription').value;
+        const ph = document.getElementById('adPhone').value;
+        if(!ds || !ph) return alert("أكمل البيانات المطلوبة (الوصف والرقم)");
+
+        publishBtn.disabled = true;
+        status.style.display = "block";
         let imageUrl = "";
 
         if(file) {
-            publishBtn.disabled = true;
-            status.style.display = "block";
-            
-            // ضغط الملف قبل الرفع
+            status.innerHTML = "جاري ضغط الصورة... <i class='fas fa-compress'></i>";
             const compressedBlob = await compressImage(file);
             
             const storageRef = storage.ref('images/' + Date.now() + ".jpg");
-            try {
-                const snapshot = await storageRef.put(compressedBlob);
-                imageUrl = await snapshot.ref.getDownloadURL();
-            } catch (e) { alert("فشل رفع الصورة"); }
+            const uploadTask = storageRef.put(compressedBlob);
+
+            // مراقبة تقدم الرفع
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                    status.innerHTML = "جاري الرفع: " + progress + "% <i class='fas fa-cloud-upload-alt'></i>";
+                }, 
+                (error) => { alert("فشل الرفع، حاول ثانية"); publishBtn.disabled = false; }, 
+                async () => {
+                    imageUrl = await uploadTask.snapshot.ref.getDownloadURL();
+                    publishToFirebase(imageUrl);
+                }
+            );
+        } else {
+            publishToFirebase("");
         }
-        
-        publishToFirebase(imageUrl);
     }
 
     function publishToFirebase(imgUrl) {
+        const status = document.getElementById('uploadStatus');
+        status.innerHTML = "جاري النشر النهائي... <i class='fas fa-check'></i>";
+        
         const cat = document.getElementById('adCategory').value;
         const ds = document.getElementById('adDescription').value;
         const ph = document.getElementById('adPhone').value;
         const pr = document.getElementById('adPriceInput').value;
         const loc = document.getElementById('adLocationInput').value;
-        
-        if(!ds || !ph) return alert("أكمل البيانات");
 
         db.ref('ads/').push({ 
             id: Date.now(), category: cat, desc: ds, phone: ph, price: pr, location: loc, image: imgUrl 
         }).then(() => { 
             alert("تم النشر بنجاح!"); 
             location.reload();
+        }).catch(() => {
+            alert("حدث خطأ في الاتصال");
+            document.getElementById('publishBtn').disabled = false;
         });
     }
 
     function fetchAds(cat) {
         const container = document.getElementById('ads-container');
-        container.innerHTML = "جاري التحميل...";
+        container.innerHTML = "<div style='text-align:center; padding:20px;'><i class='fas fa-spinner fa-spin'></i> جاري جلب الإعلانات...</div>";
         db.ref('ads/').on('value', (snap) => {
             container.innerHTML = "";
             const data = snap.val();
+            let hasAds = false;
             for(let k in data) {
                 if(data[k].category === cat) {
+                    hasAds = true;
                     container.innerHTML += `
                         <div class="ad-item">
                             ${data[k].image ? `<img src="${data[k].image}" class="ad-image" style="display:block;">` : ''}
-                            <h5>${cat}</h5>
-                            <p>${data[k].desc}</p>
+                            <h5 style="color:var(--main-color)">${cat}</h5>
+                            <p style="margin:10px 0;">${data[k].desc}</p>
                             ${data[k].price ? `<span class="ad-price">${data[k].price}</span>` : ''}
                             ${data[k].location ? `<span class="ad-location"><i class="fas fa-map-marker-alt"></i> ${data[k].location}</span>` : ''}
-                            <button class="submit-btn" style="padding:8px; margin-top:10px;" onclick="window.open('https://wa.me/${data[k].phone}')">واتساب</button>
+                            <button class="submit-btn" style="padding:10px; margin-top:10px;" onclick="window.open('https://wa.me/${data[k].phone}')"><i class="fab fa-whatsapp"></i> تواصل عبر الواتساب</button>
                         </div>`;
                 }
             }
+            if(!hasAds) container.innerHTML = "<p style='text-align:center; padding:20px;'>لا يوجد إعلانات في هذا القسم حالياً.</p>";
         });
     }
 </script>
 </body>
-    </html>
-    
+</html>
