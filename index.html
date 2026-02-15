@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+            <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -9,6 +9,7 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
 
     <style>
         :root {
@@ -21,90 +22,43 @@
             --nav-bg: #ffffff;
         }
 
-        /* الثيمات */
         body.theme-dark { --main-color: #1a1a2e; --bg-light: #16213e; --text-dark: #e94560; --white: #0f3460; --nav-bg: #1a1a2e; color: #fff; }
         body.theme-blue { --main-color: #2980b9; --bg-light: #ebf5fb; --text-dark: #154360; --nav-bg: #ffffff; }
         body.theme-fuchsia { --main-color: #d81b60; --bg-light: #fce4ec; --text-dark: #880e4f; --nav-bg: #ffffff; }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; transition: background 0.3s; }
-        
-        html, body { 
-            height: 100%; 
-            overflow-x: hidden; 
-            background-color: var(--bg-light); 
-            color: var(--text-dark); 
-        }
-
+        html, body { height: 100%; overflow-x: hidden; background-color: var(--bg-light); color: var(--text-dark); }
         body { padding-bottom: 80px; }
 
-        header {
-            background: var(--main-color); color: white; padding: 15px;
-            text-align: center; position: sticky; top: 0; z-index: 1000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
+        header { background: var(--main-color); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
 
-        .promo-slider {
-            width: 100%; height: 160px; overflow: hidden; position: relative;
-            background: #fff; margin-bottom: 10px;
-        }
-        .slides-container {
-            display: flex; width: 300%; height: 100%;
-            transition: transform 1s ease-in-out;
-        }
-        .slide {
-            width: 33.333%; height: 100%; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; color: white;
-            text-align: center; font-weight: bold;
-            background-size: contain; background-repeat: no-repeat; background-position: center;
-        }
-        .ad-button {
-            position: absolute; bottom: 10px; left: 10px; background: var(--whatsapp-color);
-            color: white; padding: 6px 12px; border-radius: 20px; text-decoration: none;
-            font-size: 0.75rem; display: flex; align-items: center; gap: 5px; z-index: 10;
-        }
-
+        .promo-slider { width: 100%; height: 160px; overflow: hidden; position: relative; background: #fff; margin-bottom: 10px; }
+        .slides-container { display: flex; width: 300%; height: 100%; transition: transform 1s ease-in-out; }
+        .slide { width: 33.333%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; font-weight: bold; background-size: contain; background-repeat: no-repeat; background-position: center; }
+        
         .page { display: none; padding: 15px; min-height: 80vh; }
         .page.active { display: block; }
 
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .category-card {
-            background: var(--white); padding: 15px 5px; border-radius: 12px;
-            text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
-        }
+        .category-card { background: var(--white); padding: 15px 5px; border-radius: 12px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; }
         .category-card i { font-size: 1.5rem; color: var(--main-color); margin-bottom: 8px; display: block; }
-        .category-card span { font-size: 0.75rem; font-weight: bold; }
-
-        .ad-item {
-            background: var(--white); border-radius: 15px; padding: 15px; margin-bottom: 15px;
-            position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
         
+        .ad-item { background: var(--white); border-radius: 15px; padding: 15px; margin-bottom: 15px; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
+        .ad-image { width: 100%; height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; display: none; }
         .ad-price { color: var(--main-color); font-weight: bold; font-size: 1.1rem; display: block; margin-top: 5px; }
         .ad-location { opacity: 0.5; font-size: 0.8rem; display: block; margin-top: 2px; }
 
-        .bottom-nav {
-            position: fixed; bottom: 0; width: 100%; background: var(--nav-bg);
-            display: flex; justify-content: space-around; align-items: center;
-            height: 65px; box-shadow: 0 -2px 15px rgba(0,0,0,0.1); z-index: 1000;
-        }
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--nav-bg); display: flex; justify-content: space-around; align-items: center; height: 65px; box-shadow: 0 -2px 15px rgba(0,0,0,0.1); z-index: 1000; }
         .nav-btn { border: none; background: none; color: #7f8c8d; cursor: pointer; font-size: 0.75rem; text-align: center; flex: 1; }
         .nav-btn.active { color: var(--main-color); }
-        .nav-btn i { font-size: 1.3rem; display: block; margin-bottom: 2px; }
-
-        .center-add-btn {
-            background: var(--main-color); color: white !important;
-            width: 50px; height: 50px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.3rem; border: 4px solid var(--white);
-            margin-top: -30px; cursor: pointer;
-        }
+        .center-add-btn { background: var(--main-color); color: white !important; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: 4px solid var(--white); margin-top: -30px; cursor: pointer; }
 
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
         .modal-content { background: white; margin: 5% auto; padding: 20px; width: 90%; max-width: 500px; border-radius: 20px; color: #333; overflow-y: auto; max-height: 90vh; }
-        
-        .theme-selector { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
-        .theme-btn { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #ddd; cursor: pointer; }
+        .input-f { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #ddd; outline: none; }
         .submit-btn { background: var(--main-color); color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        
+        #uploadStatus { font-size: 0.8rem; color: var(--main-color); margin-bottom: 10px; display: none; }
     </style>
 </head>
 <body id="bodyTag">
@@ -115,16 +69,10 @@
     <div class="promo-slider">
         <div class="slides-container" id="slidesContainer">
             <div class="slide" style="background-image: url('https://e.top4top.io/p_3698lth5n0.jpg');"></div>
-            <div class="slide" style="background: linear-gradient(45deg, #1a1a2e, #16213e);">
-                <h2 style="color: #00d2ff;">تطبيق خدمة الحولة</h2>
-                <p>دليلك المهني والخدمي الشامل</p>
-            </div>
-            <div class="slide" style="background: linear-gradient(45deg, #27ae60, #2ecc71);">
-                <h2>معرض العلوش</h2>
-                <p>للسيراميك وأطقم الحمامات</p>
-            </div>
+            <div class="slide" style="background: linear-gradient(45deg, #1a1a2e, #16213e);"><h2 style="color: #00d2ff;">تطبيق خدمة الحولة</h2><p>دليلك المهني والخدمي الشامل</p></div>
+            <div class="slide" style="background: linear-gradient(45deg, #27ae60, #2ecc71);"><h2>سوق الحولة</h2><p>أعلن مجاناً وبكل سهولة</p></div>
         </div>
-        <a href="https://wa.me/905384076469" class="ad-button"><i class="fab fa-whatsapp"></i> احجز إعلانك</a>
+        <a href="https://wa.me/905384076469" class="ad-button" style="position: absolute; bottom: 10px; left: 10px; background: var(--whatsapp-color); color: white; padding: 6px 12px; border-radius: 20px; text-decoration: none; font-size: 0.75rem;"><i class="fab fa-whatsapp"></i> احجز إعلانك</a>
     </div>
 
     <div class="grid-container">
@@ -154,11 +102,11 @@
     <div style="text-align:center;">
         <i class="fas fa-user-circle" style="font-size: 3rem; color: var(--main-color);"></i>
         <h4 style="margin: 15px 0;">تغيير الثيم</h4>
-        <div class="theme-selector">
-            <div class="theme-btn" style="background: #27ae60;" onclick="changeTheme('default')"></div>
-            <div class="theme-btn" style="background: #1a1a2e;" onclick="changeTheme('dark')"></div>
-            <div class="theme-btn" style="background: #2980b9;" onclick="changeTheme('blue')"></div>
-            <div class="theme-btn" style="background: #d81b60;" onclick="changeTheme('fuchsia')"></div>
+        <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #27ae60; cursor: pointer;" onclick="changeTheme('default')"></div>
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #1a1a2e; cursor: pointer;" onclick="changeTheme('dark')"></div>
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #2980b9; cursor: pointer;" onclick="changeTheme('blue')"></div>
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: #d81b60; cursor: pointer;" onclick="changeTheme('fuchsia')"></div>
         </div>
     </div>
 </div>
@@ -174,17 +122,21 @@
 <div id="adModal" class="modal">
     <div class="modal-content">
         <h4>إضافة إعلان جديد</h4><br>
-        <select id="adCategory" style="width:100%; padding:10px; margin-bottom:10px; border-radius:10px;">
+        <select id="adCategory" class="input-f">
             <option>مطاعم</option><option>أثاث</option><option>كهربائيات</option><option>منزلية</option>
-            <option>سيارات</option><option>موتورات</option><option>هواتف</option>
-            <option>إلكترونيات</option><option>بناء</option><option>للأجار</option>
-            <option>للبيع</option><option>الأطباء</option>
+            <option>سيارات</option><option>موتورات</option><option>هواتف</option><option>إلكترونيات</option>
+            <option>بناء</option><option>للأجار</option><option>للبيع</option><option>الأطباء</option>
         </select>
-        <input type="text" id="adPriceInput" placeholder="السعر (مثال: 50$)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd;">
-        <input type="text" id="adLocationInput" placeholder="المنطقة (مثال: تلذهب)" style="width:100%; padding:10px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd;">
-        <textarea id="adDescription" placeholder="وصف السلعة..." style="width:100%; padding:10px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd;"></textarea>
-        <input type="tel" id="adPhone" placeholder="رقم الواتساب" style="width:100%; padding:10px; margin-bottom:15px; border-radius:10px; border:1px solid #ddd;">
-        <button class="submit-btn" onclick="publishToFirebase()">نشر الإعلان</button>
+        <input type="text" id="adPriceInput" class="input-f" placeholder="السعر (مثال: 50$)">
+        <input type="text" id="adLocationInput" class="input-f" placeholder="المنطقة (مثال: تلذهب)">
+        <textarea id="adDescription" class="input-f" placeholder="وصف السلعة..."></textarea>
+        <input type="tel" id="adPhone" class="input-f" placeholder="رقم الواتساب">
+        
+        <label style="font-size: 0.8rem; color: #666;">ارفاق صورة الإعلان:</label>
+        <input type="file" id="adImageInput" class="input-f" accept="image/*">
+        <p id="uploadStatus">جاري ضغط ورفع الصورة... <i class="fas fa-spinner fa-spin"></i></p>
+        
+        <button class="submit-btn" id="publishBtn" onclick="handlePublish()">نشر الإعلان</button>
         <button onclick="toggleModal(false)" style="width:100%; margin-top:10px; background:none; border:none; color:red;">إلغاء</button>
     </div>
 </div>
@@ -195,12 +147,13 @@
         authDomain: "souq-houla.firebaseapp.com",
         databaseURL: "https://souq-houla-default-rtdb.firebaseio.com",
         projectId: "souq-houla",
-        storageBucket: "souq-houla.firebasestorage.app",
+        storageBucket: "souq-houla.appspot.com",
         messagingSenderId: "948869803475",
         appId: "1:948869803475:web:333a16d733674c72a4d326"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const storage = firebase.storage();
 
     let currS = 0;
     setInterval(() => {
@@ -220,43 +173,81 @@
         window.scrollTo(0,0);
     }
 
-    function openCategory(cat) {
-        showPage('category-detail', 'قسم ' + cat);
-        fetchAds(cat);
-    }
-
+    function openCategory(cat) { showPage('category-detail', 'قسم ' + cat); fetchAds(cat); }
     function toggleModal(s) { document.getElementById('adModal').style.display = s ? 'block' : 'none'; }
+    function changeTheme(theme) { document.body.className = theme === 'default' ? '' : 'theme-' + theme; localStorage.setItem('souq_theme', theme); }
+    if(localStorage.getItem('souq_theme')) changeTheme(localStorage.getItem('souq_theme'));
 
-    function changeTheme(theme) {
-        document.body.className = theme === 'default' ? '' : 'theme-' + theme;
-        localStorage.setItem('souq_theme', theme);
+    // وظيفة ضغط الصورة قبل الرفع
+    async function compressImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800; // تصغير العرض لـ 800 بكسل كحد أقصى
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // جودة 0.6 توفر مساحة هائلة مع الحفاظ على وضوح كافٍ للجوال
+                    canvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/jpeg', 0.6);
+                };
+            };
+        });
     }
-    const savedTheme = localStorage.getItem('souq_theme');
-    if(savedTheme) changeTheme(savedTheme);
 
-    function publishToFirebase() {
+    async function handlePublish() {
+        const file = document.getElementById('adImageInput').files[0];
+        const publishBtn = document.getElementById('publishBtn');
+        const status = document.getElementById('uploadStatus');
+        
+        let imageUrl = "";
+
+        if(file) {
+            publishBtn.disabled = true;
+            status.style.display = "block";
+            
+            // ضغط الملف قبل الرفع
+            const compressedBlob = await compressImage(file);
+            
+            const storageRef = storage.ref('images/' + Date.now() + ".jpg");
+            try {
+                const snapshot = await storageRef.put(compressedBlob);
+                imageUrl = await snapshot.ref.getDownloadURL();
+            } catch (e) { alert("فشل رفع الصورة"); }
+        }
+        
+        publishToFirebase(imageUrl);
+    }
+
+    function publishToFirebase(imgUrl) {
         const cat = document.getElementById('adCategory').value;
         const ds = document.getElementById('adDescription').value;
         const ph = document.getElementById('adPhone').value;
         const pr = document.getElementById('adPriceInput').value;
         const loc = document.getElementById('adLocationInput').value;
+        
         if(!ds || !ph) return alert("أكمل البيانات");
 
         db.ref('ads/').push({ 
-            id: Date.now(), 
-            category: cat, 
-            desc: ds, 
-            phone: ph, 
-            price: pr,
-            location: loc 
+            id: Date.now(), category: cat, desc: ds, phone: ph, price: pr, location: loc, image: imgUrl 
         }).then(() => { 
             alert("تم النشر بنجاح!"); 
-            toggleModal(false);
-            // تفريغ الحقول
-            document.getElementById('adDescription').value = "";
-            document.getElementById('adPhone').value = "";
-            document.getElementById('adPriceInput').value = "";
-            document.getElementById('adLocationInput').value = "";
+            location.reload();
         });
     }
 
@@ -266,24 +257,22 @@
         db.ref('ads/').on('value', (snap) => {
             container.innerHTML = "";
             const data = snap.val();
-            let found = false;
             for(let k in data) {
                 if(data[k].category === cat) {
-                    found = true;
                     container.innerHTML += `
                         <div class="ad-item">
+                            ${data[k].image ? `<img src="${data[k].image}" class="ad-image" style="display:block;">` : ''}
                             <h5>${cat}</h5>
                             <p>${data[k].desc}</p>
                             ${data[k].price ? `<span class="ad-price">${data[k].price}</span>` : ''}
                             ${data[k].location ? `<span class="ad-location"><i class="fas fa-map-marker-alt"></i> ${data[k].location}</span>` : ''}
-                            <button class="submit-btn" style="padding:8px; margin-top:10px; font-size:0.9rem;" onclick="window.open('https://wa.me/${data[k].phone}')">واتساب</button>
+                            <button class="submit-btn" style="padding:8px; margin-top:10px;" onclick="window.open('https://wa.me/${data[k].phone}')">واتساب</button>
                         </div>`;
                 }
             }
-            if(!found) container.innerHTML = "لا يوجد إعلانات حالياً في هذا القسم.";
         });
     }
 </script>
 </body>
     </html>
-                                                                           
+    
