@@ -9,7 +9,6 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
 
     <style>
         :root {
@@ -18,7 +17,6 @@
             --white: #ffffff;
             --text-dark: #2c3e50;
             --whatsapp-color: #25d366;
-            --heart-color: #e74c3c;
             --nav-bg: #ffffff;
         }
 
@@ -57,7 +55,6 @@
         .modal-content { background: white; margin: 5% auto; padding: 20px; width: 90%; max-width: 500px; border-radius: 20px; color: #333; overflow-y: auto; max-height: 90vh; }
         .input-f { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #ddd; outline: none; }
         .submit-btn { background: var(--main-color); color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; }
-        .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
         
         #uploadStatus { font-size: 0.85rem; color: var(--main-color); margin-bottom: 10px; display: none; text-align: center; font-weight: bold; background: #eef9f1; padding: 5px; border-radius: 8px; }
     </style>
@@ -148,13 +145,14 @@
         authDomain: "souq-houla.firebaseapp.com",
         databaseURL: "https://souq-houla-default-rtdb.firebaseio.com",
         projectId: "souq-houla",
-        storageBucket: "souq-houla.appspot.com",
         messagingSenderId: "948869803475",
         appId: "1:948869803475:web:333a16d733674c72a4d326"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const storage = firebase.storage();
+
+    // إعدادات الرفع لموقع ImgBB
+    const IMGBB_API_KEY = "4c0a4c21961e8b8515bb0bb0d6588ca8";
 
     let currS = 0;
     setInterval(() => {
@@ -179,34 +177,6 @@
     function changeTheme(theme) { document.body.className = theme === 'default' ? '' : 'theme-' + theme; localStorage.setItem('souq_theme', theme); }
     if(localStorage.getItem('souq_theme')) changeTheme(localStorage.getItem('souq_theme'));
 
-    // وظيفة معالجة الصور بطريقة Base64 لضمان التوافق والسرعة
-    async function processImage(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (e) => {
-                const img = new Image();
-                img.src = e.target.result;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_SIZE = 500; 
-                    let width = img.width;
-                    let height = img.height;
-                    if (width > height) {
-                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-                    } else {
-                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
-                    }
-                    canvas.width = width; canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    // استخدام JPEG بضغط عالي جداً لسرعة الرفع القصوى
-                    resolve(canvas.toDataURL('image/jpeg', 0.4));
-                };
-            };
-        });
-    }
-
     async function handlePublish() {
         const fileInput = document.getElementById('adImageInput');
         const publishBtn = document.getElementById('publishBtn');
@@ -218,26 +188,33 @@
 
         publishBtn.disabled = true;
         status.style.display = "block";
-        status.innerHTML = "جاري المعالجة... <i class='fas fa-sync fa-spin'></i>";
+        status.innerHTML = "جاري رفع الصورة... <i class='fas fa-cloud-upload fa-spin'></i>";
 
         let imageUrl = "";
 
         if(fileInput.files.length > 0) {
+            const formData = new FormData();
+            formData.append("image", fileInput.files[0]);
+
             try {
-                const base64Image = await processImage(fileInput.files[0]);
-                status.innerHTML = "جاري الرفع السريع... 50%";
+                // الرفع المباشر لموقع ImgBB
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                    method: "POST",
+                    body: formData
+                });
+                const result = await response.json();
                 
-                const storageRef = storage.ref('images/' + Date.now() + ".jpg");
-                // الرفع باستخدام سلسلة Base64 لضمان عدم توقف العداد عند 0
-                const snapshot = await storageRef.putString(base64Image.split(',')[1], 'base64', {contentType:'image/jpeg'});
-                imageUrl = await snapshot.ref.getDownloadURL();
-                
-                status.innerHTML = "اكتمل الرفع! 100%";
-                publishToFirebase(imageUrl);
+                if(result.success) {
+                    imageUrl = result.data.url; // الرابط المباشر للصورة
+                    status.innerHTML = "اكتمل الرفع! جاري النشر...";
+                    publishToFirebase(imageUrl);
+                } else {
+                    throw new Error("فشل الرفع");
+                }
             } catch (error) {
-                console.error(error);
-                alert("خطأ في رفع الصورة، حاول مرة أخرى");
+                alert("حدث خطأ أثناء رفع الصورة، حاول مجدداً.");
                 publishBtn.disabled = false;
+                status.style.display = "none";
             }
         } else {
             publishToFirebase("");
@@ -257,14 +234,14 @@
             alert("تم نشر إعلانك بنجاح!"); 
             location.reload();
         }).catch(() => {
-            alert("فشل في الاتصال بقاعدة البيانات");
+            alert("فشل الاتصال بقاعدة البيانات");
             document.getElementById('publishBtn').disabled = false;
         });
     }
 
     function fetchAds(cat) {
         const container = document.getElementById('ads-container');
-        container.innerHTML = "<div style='text-align:center; padding:20px;'><i class='fas fa-circle-notch fa-spin'></i> جاري التحميل...</div>";
+        container.innerHTML = "<div style='text-align:center; padding:20px;'>جاري التحميل...</div>";
         db.ref('ads/').on('value', (snap) => {
             container.innerHTML = "";
             const data = snap.val();
@@ -276,18 +253,19 @@
                         <div class="ad-item">
                             ${data[k].image ? `<img src="${data[k].image}" class="ad-image" style="display:block;">` : ''}
                             <h5 style="color:var(--main-color)">${cat}</h5>
-                            <p style="margin:8px 0; font-size:0.95rem;">${data[k].desc}</p>
+                            <p style="margin:8px 0;">${data[k].desc}</p>
                             ${data[k].price ? `<span class="ad-price">${data[k].price}</span>` : ''}
                             ${data[k].location ? `<span class="ad-location"><i class="fas fa-map-marker-alt"></i> ${data[k].location}</span>` : ''}
-                            <button class="submit-btn" style="padding:10px; margin-top:10px; font-size:0.9rem;" onclick="window.open('https://wa.me/${data[k].phone}')">
+                            <button class="submit-btn" style="padding:10px; margin-top:10px;" onclick="window.open('https://wa.me/${data[k].phone}')">
                                 <i class="fab fa-whatsapp"></i> تواصل الآن
                             </button>
                         </div>`;
                 }
             }
-            if(!hasAds) container.innerHTML = "<p style='text-align:center; padding:30px; color:#7f8c8d;'>لا توجد إعلانات متاحة في هذا القسم.</p>";
+            if(!hasAds) container.innerHTML = "<p style='text-align:center; padding:20px;'>لا توجد إعلانات حالياً.</p>";
         });
     }
 </script>
 </body>
-</html>
+                </html>
+                                                                                                             
