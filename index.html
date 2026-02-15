@@ -46,7 +46,7 @@
         .ad-item { background: var(--white); border-radius: 15px; padding: 15px; margin-bottom: 15px; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; }
         .ad-image { width: 100%; height: 180px; object-fit: cover; border-radius: 10px; margin-bottom: 10px; display: none; }
         .ad-price { color: var(--main-color); font-weight: bold; font-size: 1.1rem; display: block; margin-top: 5px; }
-        .ad-location { opacity: 0.5; font-size: 0.8rem; display: block; margin-top: 2px; }
+        .ad-location { opacity: 0.5; font-size: 0.8rem; display: block; margin-top: 2px; color: #7f8c8d; }
 
         .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--nav-bg); display: flex; justify-content: space-around; align-items: center; height: 65px; box-shadow: 0 -2px 15px rgba(0,0,0,0.1); z-index: 1000; }
         .nav-btn { border: none; background: none; color: #7f8c8d; cursor: pointer; font-size: 0.75rem; text-align: center; flex: 1; }
@@ -57,9 +57,9 @@
         .modal-content { background: white; margin: 5% auto; padding: 20px; width: 90%; max-width: 500px; border-radius: 20px; color: #333; overflow-y: auto; max-height: 90vh; }
         .input-f { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 10px; border: 1px solid #ddd; outline: none; }
         .submit-btn { background: var(--main-color); color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; }
-        .submit-btn:disabled { background: #ccc; }
+        .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
         
-        #uploadStatus { font-size: 0.8rem; color: var(--main-color); margin-bottom: 10px; display: none; text-align: center; font-weight: bold; }
+        #uploadStatus { font-size: 0.85rem; color: var(--main-color); margin-bottom: 10px; display: none; text-align: center; font-weight: bold; background: #eef9f1; padding: 5px; border-radius: 8px; }
     </style>
 </head>
 <body id="bodyTag">
@@ -73,7 +73,7 @@
             <div class="slide" style="background: linear-gradient(45deg, #1a1a2e, #16213e);"><h2 style="color: #00d2ff;">تطبيق خدمة الحولة</h2><p>دليلك المهني والخدمي الشامل</p></div>
             <div class="slide" style="background: linear-gradient(45deg, #27ae60, #2ecc71);"><h2>سوق الحولة</h2><p>أعلن مجاناً وبكل سهولة</p></div>
         </div>
-        <a href="https://wa.me/905384076469" class="ad-button" style="position: absolute; bottom: 10px; left: 10px; background: var(--whatsapp-color); color: white; padding: 6px 12px; border-radius: 20px; text-decoration: none; font-size: 0.75rem;"><i class="fab fa-whatsapp"></i> احجز إعلانك</a>
+        <a href="https://wa.me/905384076469" style="position: absolute; bottom: 10px; left: 10px; background: var(--whatsapp-color); color: white; padding: 6px 12px; border-radius: 20px; text-decoration: none; font-size: 0.75rem; display: flex; align-items: center; gap: 5px;"><i class="fab fa-whatsapp"></i> احجز إعلانك</a>
     </div>
 
     <div class="grid-container">
@@ -93,7 +93,7 @@
 </div>
 
 <div id="category-detail" class="page">
-    <button onclick="showPage('home', 'سوق الحولة')" style="margin-bottom:15px; background:none; border:none; color:inherit;"><i class="fas fa-arrow-right"></i> عودة</button>
+    <button onclick="showPage('home', 'سوق الحولة')" style="margin-bottom:15px; background:none; border:none; color:inherit; font-weight: bold;"><i class="fas fa-arrow-right"></i> عودة</button>
     <div id="ads-container"></div>
 </div>
 
@@ -179,74 +179,72 @@
     function changeTheme(theme) { document.body.className = theme === 'default' ? '' : 'theme-' + theme; localStorage.setItem('souq_theme', theme); }
     if(localStorage.getItem('souq_theme')) changeTheme(localStorage.getItem('souq_theme'));
 
-    // وظيفة ضغط الصورة المحسنة (أسرع)
-    async function compressImage(file) {
+    // وظيفة معالجة الصور بطريقة Base64 لضمان التوافق والسرعة
+    async function processImage(file) {
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onload = (event) => {
+            reader.onload = (e) => {
                 const img = new Image();
-                img.src = event.target.result;
+                img.src = e.target.result;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 600; // تصغير أكثر للسرعة
+                    const MAX_SIZE = 500; 
                     let width = img.width;
                     let height = img.height;
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
+                    if (width > height) {
+                        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                    } else {
+                        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
                     }
-                    canvas.width = width;
-                    canvas.height = height;
+                    canvas.width = width; canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.5); // جودة متوسطة لسرعة الرفع
+                    // استخدام JPEG بضغط عالي جداً لسرعة الرفع القصوى
+                    resolve(canvas.toDataURL('image/jpeg', 0.4));
                 };
             };
         });
     }
 
     async function handlePublish() {
-        const file = document.getElementById('adImageInput').files[0];
+        const fileInput = document.getElementById('adImageInput');
         const publishBtn = document.getElementById('publishBtn');
         const status = document.getElementById('uploadStatus');
-        
         const ds = document.getElementById('adDescription').value;
         const ph = document.getElementById('adPhone').value;
-        if(!ds || !ph) return alert("أكمل البيانات المطلوبة (الوصف والرقم)");
+
+        if(!ds || !ph) return alert("الرجاء كتابة الوصف ورقم الواتساب");
 
         publishBtn.disabled = true;
         status.style.display = "block";
+        status.innerHTML = "جاري المعالجة... <i class='fas fa-sync fa-spin'></i>";
+
         let imageUrl = "";
 
-        if(file) {
-            status.innerHTML = "جاري ضغط الصورة... <i class='fas fa-compress'></i>";
-            const compressedBlob = await compressImage(file);
-            
-            const storageRef = storage.ref('images/' + Date.now() + ".jpg");
-            const uploadTask = storageRef.put(compressedBlob);
-
-            // مراقبة تقدم الرفع
-            uploadTask.on('state_changed', 
-                (snapshot) => {
-                    const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                    status.innerHTML = "جاري الرفع: " + progress + "% <i class='fas fa-cloud-upload-alt'></i>";
-                }, 
-                (error) => { alert("فشل الرفع، حاول ثانية"); publishBtn.disabled = false; }, 
-                async () => {
-                    imageUrl = await uploadTask.snapshot.ref.getDownloadURL();
-                    publishToFirebase(imageUrl);
-                }
-            );
+        if(fileInput.files.length > 0) {
+            try {
+                const base64Image = await processImage(fileInput.files[0]);
+                status.innerHTML = "جاري الرفع السريع... 50%";
+                
+                const storageRef = storage.ref('images/' + Date.now() + ".jpg");
+                // الرفع باستخدام سلسلة Base64 لضمان عدم توقف العداد عند 0
+                const snapshot = await storageRef.putString(base64Image.split(',')[1], 'base64', {contentType:'image/jpeg'});
+                imageUrl = await snapshot.ref.getDownloadURL();
+                
+                status.innerHTML = "اكتمل الرفع! 100%";
+                publishToFirebase(imageUrl);
+            } catch (error) {
+                console.error(error);
+                alert("خطأ في رفع الصورة، حاول مرة أخرى");
+                publishBtn.disabled = false;
+            }
         } else {
             publishToFirebase("");
         }
     }
 
     function publishToFirebase(imgUrl) {
-        const status = document.getElementById('uploadStatus');
-        status.innerHTML = "جاري النشر النهائي... <i class='fas fa-check'></i>";
-        
         const cat = document.getElementById('adCategory').value;
         const ds = document.getElementById('adDescription').value;
         const ph = document.getElementById('adPhone').value;
@@ -256,17 +254,17 @@
         db.ref('ads/').push({ 
             id: Date.now(), category: cat, desc: ds, phone: ph, price: pr, location: loc, image: imgUrl 
         }).then(() => { 
-            alert("تم النشر بنجاح!"); 
+            alert("تم نشر إعلانك بنجاح!"); 
             location.reload();
         }).catch(() => {
-            alert("حدث خطأ في الاتصال");
+            alert("فشل في الاتصال بقاعدة البيانات");
             document.getElementById('publishBtn').disabled = false;
         });
     }
 
     function fetchAds(cat) {
         const container = document.getElementById('ads-container');
-        container.innerHTML = "<div style='text-align:center; padding:20px;'><i class='fas fa-spinner fa-spin'></i> جاري جلب الإعلانات...</div>";
+        container.innerHTML = "<div style='text-align:center; padding:20px;'><i class='fas fa-circle-notch fa-spin'></i> جاري التحميل...</div>";
         db.ref('ads/').on('value', (snap) => {
             container.innerHTML = "";
             const data = snap.val();
@@ -278,14 +276,16 @@
                         <div class="ad-item">
                             ${data[k].image ? `<img src="${data[k].image}" class="ad-image" style="display:block;">` : ''}
                             <h5 style="color:var(--main-color)">${cat}</h5>
-                            <p style="margin:10px 0;">${data[k].desc}</p>
+                            <p style="margin:8px 0; font-size:0.95rem;">${data[k].desc}</p>
                             ${data[k].price ? `<span class="ad-price">${data[k].price}</span>` : ''}
                             ${data[k].location ? `<span class="ad-location"><i class="fas fa-map-marker-alt"></i> ${data[k].location}</span>` : ''}
-                            <button class="submit-btn" style="padding:10px; margin-top:10px;" onclick="window.open('https://wa.me/${data[k].phone}')"><i class="fab fa-whatsapp"></i> تواصل عبر الواتساب</button>
+                            <button class="submit-btn" style="padding:10px; margin-top:10px; font-size:0.9rem;" onclick="window.open('https://wa.me/${data[k].phone}')">
+                                <i class="fab fa-whatsapp"></i> تواصل الآن
+                            </button>
                         </div>`;
                 }
             }
-            if(!hasAds) container.innerHTML = "<p style='text-align:center; padding:20px;'>لا يوجد إعلانات في هذا القسم حالياً.</p>";
+            if(!hasAds) container.innerHTML = "<p style='text-align:center; padding:30px; color:#7f8c8d;'>لا توجد إعلانات متاحة في هذا القسم.</p>";
         });
     }
 </script>
